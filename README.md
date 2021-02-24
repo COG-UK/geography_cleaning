@@ -43,7 +43,9 @@ There are multiple ways that the final adm2 designation is achieved, and this is
 This is designed to be as useful as possible for humans. The adm2 processing often results in long, and ambiguous strings, joined by pipe symbols which, while important for any analysis or mapping, can be tricky for people to interprete quickly.
 
 There are a few different ways the location field is used:
+
 It will show the highest resolution (up to adm2) data available going from adm1-->NUTS1-->adm2
+
 Or it may show a grouping of adm2s that is commonly used more than the adm2s themselves, avoiding long and ambiguous adm2 strings. These groupings can be found at the bottom of this page.
 
 ### Suggested adm2 groupings:
