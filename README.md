@@ -1,4 +1,4 @@
-## README
+## Geography cleaning
 
 This is the repo for the geography cleaning scripts and utilities used in phylopipe/datapipe runs for COG-UK. 
 
