@@ -14,7 +14,7 @@ Correct adm2s with pipes (i.e. if the ambiguity is known on submission) in betwe
 This script will also accept valid NUTS1 regions as inputs. These are defined at the bottom of the page, along with their constituent adm2s.
 
 
-Columns in output:
+### Columns in output:
 - Sequence_name
 - ID
 - adm2_raw: the inputted adm2, unedited
@@ -32,7 +32,7 @@ Columns in output:
 - suggested_adm2_grouping: Designation that may be more sensible for some geographical analyses. See below.
 
 
-Adm2 processing:
+### Adm2 processing:
 
 There are multiple ways that the final adm2 designation is achieved, and this is denoted in the "source" column:
 
@@ -42,15 +42,17 @@ There are multiple ways that the final adm2 designation is achieved, and this is
 - postcode_conflict_resolution: If the postcode and the cleaned input adm2 are incompatible, the adm2 from the postcode is chosen.
 - any of the above plus country: if the adm2 is ambiguous across adm1 borders, only those in the inputted adm1 are taken forwards. This is mostly applicable with postcodes on the english/welsh border.
 
-Location:
+### Location:
 
 This is designed to be as useful as possible for humans. The adm2 processing often results in long, and ambiguous strings, joined by pipe symbols which, while important for any analysis or mapping, can be tricky for people to interprete quickly.
 
 There are a few different ways the location field is used:
+
 It will show the highest resolution (up to adm2) data available going from adm1-->NUTS1-->adm2
+
 Or it may show a grouping of adm2s that is commonly used more than the adm2s themselves, avoiding long and ambiguous adm2 strings. These groupings can be found at the bottom of this page.
 
-Suggested adm2 groupings:
+### Suggested adm2 groupings:
 
 This is a field based on experience of running geographical analyses using the genome data in the UK. It is designed to try and keep all of the geographical genome data as accurate as possible.
 It is a combination of two things:
@@ -64,7 +66,7 @@ The file that defines this is "adm2_aggregation.csv" in the "geography_utils" fo
 
 
 
-Files in geography_utilities folder:
+### Files in geography_utilities folder:
 
 - LAD_UTLA_adm2.csv: made by Chris Ruis at the University of Cambridge, contains the adm2 to utla mapping. Also contains Local Authority Areas.
 - adm2_cleaning.tsv: known mistakes made when inputting adm2s. First column is the location provided in the unclean metadata. If there's only one other column, it is a 1:1 mapping to a GADM adm2 (eg Borders to Scottish_borders). If there are multiple other columns, then the adm2 supplied consists of multiple GADM adm2s.
@@ -74,7 +76,7 @@ Files in geography_utilities folder:
 - postcode_to_adm2: Lookup table to match outer postcodes to one or more GADM adm2s, ambiguities denoted by "|".
 
 
-Groupings:
+### Groupings:
 
 - BIRMINGHAM|COVENTRY|DUDLEY|SANDWELL|SOLIHULL|WALSALL|WOLVERHAMPTON: West Midlands
 - DERBY|DERBYSHIRE|LEICESTER|LEICESTERSHIRE|LINCOLNSHIRE|NORTHAMPTONSHIRE|NOTTINGHAM|NOTTINGHAMSHIRE|RUTLAND: East Midlands
