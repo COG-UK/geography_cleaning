@@ -44,6 +44,9 @@ def process_adm2(outer_postcode, adm2, metadata_multi_loc, straight_map, not_map
         if adm2 in acceptable_adm2s:
             processed_adm2 = adm2
             source = "adm2_raw"
+        elif "|" in adm2:
+            processed_adm2 = adm2
+            source = "adm2_raw"
         else:
             processed_adm2 = clean_adm2(adm2, metadata_multi_loc, straight_map, not_mappable)
             if type(processed_adm2) != bool:
