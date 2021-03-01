@@ -23,10 +23,10 @@ def do_outer_postcode_region_latlong(geog_dict, outer_postcode, outer_to_latlong
 
     return geog_dict
 
-def process_adm2(outer_postcode, adm2, metadata_multi_loc, straight_map, not_mappable, postcode_to_adm2, adm1):
+def process_adm2(outer_postcode, adm2, metadata_multi_loc, straight_map, not_mappable, postcode_to_adm2, adm1, nuts_list):
 
     country_to_adm2, adm2_to_country, acceptable_adm2s = get_acceptable_adm2()
-    adm2 = adm2.upper()
+    adm2 = adm2.upper().replace(" ","_")
 
     if outer_postcode != "" and (adm2 == "" or adm2 in not_mappable):
         if outer_postcode in postcode_to_adm2:
@@ -35,6 +35,10 @@ def process_adm2(outer_postcode, adm2, metadata_multi_loc, straight_map, not_map
         else:
             processed_adm2 = ""
             source = ""
+
+    elif adm2 in nuts_list:
+        processed_adm2 = ""
+        source = "nuts_provided"
 
     elif adm2 != "":
         if adm2 in acceptable_adm2s:
@@ -358,25 +362,30 @@ def make_geography_csv(metadata_file, country_col, outer_postcode_col, adm1_col,
 
                     if adm2 != "" or outer_postcode != "":
 
-                        processed_adm2,source, conflict = process_adm2(outer_postcode, adm2, metadata_multi_loc, straight_map, not_mappable, postcode_to_adm2, processed_adm1)
-
+                        processed_adm2,source, conflict = process_adm2(outer_postcode, adm2, metadata_multi_loc, straight_map, not_mappable, postcode_to_adm2, processed_adm1, nuts_dict)
+                        
                         geog_dict["adm2_source"] = source
 
                         if type(processed_adm2) != bool:
-
+                            
                             geog_dict["adm2"] = processed_adm2
 
-                            if "|" in processed_adm2:
-                                nuts_adm2 = processed_adm2.split("|")[0]
-                            else:
-                                nuts_adm2 = processed_adm2
-
                             NUTS1 = ""
-                            for region, lst in nuts_dict.items():
-                                if nuts_adm2 in lst:
-                                    NUTS1 = region
+                            if source != "nuts_provided":
+                                print(source)
+                                if "|" in processed_adm2:
+                                    nuts_adm2 = processed_adm2.split("|")[0]
+                                else:
+                                    nuts_adm2 = processed_adm2
 
-                            geog_dict["NUTS1"] = NUTS1
+                                for region, lst in nuts_dict.items():
+                                    if nuts_adm2 in lst:
+                                        NUTS1 = region
+                            else:
+                                NUTS1 = adm2
+                                
+
+                            geog_dict["NUTS1"] = NUTS1.title()
 
                         else:
                             curation += 1
