@@ -275,7 +275,57 @@ def generate_adm2_to_utla(lookup_file):
 
     return adm2_to_utla, utla_codes, suggested_grouping
 
-def make_geography_csv(metadata_file, country_col, outer_postcode_col, adm1_col, adm2_col, map_utils_dir, outdir):
+def make_safe_loc(adm2_to_week_counts, geog_dict, epiweek):
+
+    adm2 = geog_dict["adm2"]
+    agg_adm2 = geog_dict["suggested_adm2_grouping"]
+    nuts = geog_dict["NUTS1"]
+
+    # safe_loc = ""
+    if adm2 != "":
+        if float(adm2_to_week_counts[adm2][epiweek]) >= 5:
+            safe_loc = adm2
+        elif "|" in adm2:
+            parts = adm2.split("|")
+            count = 0
+            for ele in parts:
+                if ele in adm2_to_week_counts.keys():
+                    if epiweek in adm2_to_week_counts[ele]:
+                        count += float(adm2_to_week_counts[ele][epiweek])
+            if count >= 5:
+                safe_loc = adm2
+            else:
+                safe_loc = ""
+        else:
+            safe_loc = ""
+    else:
+        safe_loc = ""
+            
+    if safe_loc == "" and agg_adm2 != "":
+        if float(adm2_to_week_counts[agg_adm2][epiweek]) >= 5:
+            safe_loc = agg_adm2
+        elif "|" in agg_adm2:
+            parts = agg_adm2.split("|")
+            count = 0
+            for ele in parts:
+                if ele in adm2_to_week_counts.keys():
+                    if epiweek in adm2_to_week_counts[ele]:
+                        count += float(adm2_to_week_counts[ele][epiweek])
+            if count >= 5:
+                safe_loc = agg_adm2
+            else:
+                safe_loc = nuts
+        else:
+            safe_loc = nuts
+    
+    if safe_loc == "" and nuts != "":
+        safe_loc = nuts
+
+    return safe_loc
+
+
+
+def process_input(metadata_file, country_col, outer_postcode_col, adm1_col, adm2_col, epiweek_col, map_utils_dir,outdir):
 
     outer_to_latlongs_region = find_outerpostcode_to_coord_mapping(map_utils_dir)
     metadata_multi_loc, straight_map = prep_adm2_data(os.path.join(map_utils_dir, "adm2_cleaning.tsv"))
@@ -294,6 +344,10 @@ def make_geography_csv(metadata_file, country_col, outer_postcode_col, adm1_col,
 
     already_found = []
     done_postcodes = []
+    
+    outer_geog_dict = defaultdict(dict)
+    adm2_to_week_counts = defaultdict(dict)
+    epiweek_dict = {}
 
     missing_adm1 = 0
     missing_adm2 = 0
@@ -311,169 +365,205 @@ def make_geography_csv(metadata_file, country_col, outer_postcode_col, adm1_col,
 
     fixed_seqs = {"NORT-289270": "DL12"}
 
-    with open(os.path.join(outdir,"geography.csv"), 'w') as fw:
-        fieldnames = ["sequence_name","id","adm2_raw","adm2","adm2_source","NUTS1","adm1","outer_postcode","region","latitude","longitude", "location", "utla", "utla_code", "suggested_adm2_grouping"]
-        writer = csv.DictWriter(fw, fieldnames=fieldnames)
-        writer.writeheader()
+    with open(metadata_file) as f:
+        data = csv.DictReader(f)
+        for sequence in data:
+            conflict = False
+            country = sequence[country_col]
+            adm1 = sequence[adm1_col]
+            outer_postcode = sequence[outer_postcode_col].upper().strip(" ")
+            adm2 = sequence[adm2_col]
+            name = sequence["central_sample_id"]
 
-        with open(metadata_file) as f:
-            data = csv.DictReader(f)
-            for sequence in data:
-                conflict = False
-                country = sequence[country_col]
-                adm1 = sequence[adm1_col]
-                outer_postcode = sequence[outer_postcode_col].upper().strip(" ")
-                adm2 = sequence[adm2_col]
-                name = sequence["central_sample_id"]
+            if name in fixed_seqs:
+                outer_postcode = fixed_seqs[name]
 
-                if name in fixed_seqs:
-                    outer_postcode = fixed_seqs[name]
-
-                geog_dict = {}
-                geog_dict["sequence_name"] = sequence["sequence_name"]
-                geog_dict["id"] = name
-                geog_dict["adm2_raw"] = adm2
-                geog_dict["outer_postcode"] = outer_postcode
+            geog_dict = {}
+            geog_dict["sequence_name"] = sequence["sequence_name"]
+            geog_dict["id"] = name
+            geog_dict["adm2_raw"] = adm2
+            geog_dict["outer_postcode"] = outer_postcode
 
 
-                adm2 = adm2.replace(" ","_")
+            adm2 = adm2.replace(" ","_")
 
-                if country == "UK":
+            if country == "UK":
 
-                    processed_adm1 = do_adm1(adm1)
-                    geog_dict["adm1"] = processed_adm1
-                    if processed_adm1 == "":
-                        missing_adm1 += 1
+                processed_adm1 = do_adm1(adm1)
+                geog_dict["adm1"] = processed_adm1
+                if processed_adm1 == "":
+                    missing_adm1 += 1
 
-                    if outer_postcode != "" and outer_postcode not in missing_postcodes:
-                        output = do_outer_postcode_region_latlong(geog_dict, outer_postcode, outer_to_latlongs_region)
-                        if type(output) != bool:
-                            geog_dict = output
-                            if outer_postcode not in postcode_to_adm2:
-                                if outer_postcode not in done_postcodes:
-                                    postcodes_with_no_adm2.write(outer_postcode + "\n")
-                                    done_postcodes.append(outer_postcode)
-                        else:
-                            geog_dict["region"] = ""
-                            geog_dict["latitude"] = ""
-                            geog_dict["longitude"] = ""
-                            if outer_postcode not in done_postcodes and outer_postcode not in missing_postcodes:
-                                new_unclean_postcodes.write(outer_postcode + "\n")
+                if outer_postcode != "" and outer_postcode not in missing_postcodes:
+                    output = do_outer_postcode_region_latlong(geog_dict, outer_postcode, outer_to_latlongs_region)
+                    if type(output) != bool:
+                        geog_dict = output
+                        if outer_postcode not in postcode_to_adm2:
+                            if outer_postcode not in done_postcodes:
+                                postcodes_with_no_adm2.write(outer_postcode + "\n")
                                 done_postcodes.append(outer_postcode)
                     else:
-                        missing_op += 1
+                        geog_dict["region"] = ""
+                        geog_dict["latitude"] = ""
+                        geog_dict["longitude"] = ""
+                        if outer_postcode not in done_postcodes and outer_postcode not in missing_postcodes:
+                            new_unclean_postcodes.write(outer_postcode + "\n")
+                            done_postcodes.append(outer_postcode)
+                else:
+                    missing_op += 1
 
-                    if adm2 != "" or outer_postcode != "":
+                if adm2 != "" or outer_postcode != "":
 
-                        processed_adm2,source, conflict = process_adm2(outer_postcode, adm2, metadata_multi_loc, straight_map, not_mappable, postcode_to_adm2, processed_adm1, nuts_dict)
+                    processed_adm2,source, conflict = process_adm2(outer_postcode, adm2, metadata_multi_loc, straight_map, not_mappable, postcode_to_adm2, processed_adm1, nuts_dict)
+                    
+                    geog_dict["adm2_source"] = source
+
+                    if type(processed_adm2) != bool:
                         
-                        geog_dict["adm2_source"] = source
+                        geog_dict["adm2"] = processed_adm2
 
-                        if type(processed_adm2) != bool:
+                        NUTS1 = ""
+                        if source != "nuts_provided":
+                            if "|" in processed_adm2:
+                                nuts_adm2 = processed_adm2.split("|")[0]
+                            else:
+                                nuts_adm2 = processed_adm2
+
+                            for region, lst in nuts_dict.items():
+                                if nuts_adm2 in lst:
+                                    NUTS1 = region
+                        else:
+                            NUTS1 = adm2
                             
-                            geog_dict["adm2"] = processed_adm2
 
-                            NUTS1 = ""
-                            if source != "nuts_provided":
-                                print(source)
-                                if "|" in processed_adm2:
-                                    nuts_adm2 = processed_adm2.split("|")[0]
-                                else:
-                                    nuts_adm2 = processed_adm2
-
-                                for region, lst in nuts_dict.items():
-                                    if nuts_adm2 in lst:
-                                        NUTS1 = region
-                            else:
-                                NUTS1 = adm2
-                                
-
-                            geog_dict["NUTS1"] = NUTS1.title()
-
-                        else:
-                            curation += 1
-                            geog_dict["adm2"] = "Needs_manual_curation"
-                            geog_dict["NUTS1"] = ""
-                            if adm2 not in already_found:
-                                new_unclean_locations.write(adm2 + "\n")
-                                already_found.append(adm2)
+                        geog_dict["NUTS1"] = NUTS1.title()
 
                     else:
-                        processed_adm2 = ""
-                        geog_dict["adm2"] = ""
-                        missing_adm2 += 1
-                        geog_dict["adm2_source"] = ""
+                        curation += 1
+                        geog_dict["adm2"] = "Needs_manual_curation"
                         geog_dict["NUTS1"] = ""
+                        if adm2 not in already_found:
+                            new_unclean_locations.write(adm2 + "\n")
+                            already_found.append(adm2)
+
+                else:
+                    processed_adm2 = ""
+                    geog_dict["adm2"] = ""
+                    missing_adm2 += 1
+                    geog_dict["adm2_source"] = ""
+                    geog_dict["NUTS1"] = ""
 
 
 
-                    if type(processed_adm2) != bool and processed_adm2 != "":
-                        if "|" in processed_adm2:
-                            if processed_adm2 in nice_names:
-                                location = nice_names[processed_adm2]
-                            elif NUTS1 != "":
-                                location = NUTS1
-                            elif processed_adm1 != "":
-                                location = processed_adm1
-                            else:
-                                location = ""
-
+                if type(processed_adm2) != bool and processed_adm2 != "":
+                    if "|" in processed_adm2:
+                        if processed_adm2 in nice_names:
+                            location = nice_names[processed_adm2]
+                        elif NUTS1 != "":
+                            location = NUTS1
+                        elif processed_adm1 != "":
+                            location = processed_adm1
                         else:
-                            location = processed_adm2.title().replace("_"," ")
+                            location = ""
 
-                        geog_dict["location"] = location
                     else:
-                        geog_dict["location"] = ""
+                        location = processed_adm2.title().replace("_"," ")
 
-                    if conflict and name not in already_checked_discreps:
-                        incompatible_locations.write(f'{sequence["central_sample_id"]},{outer_postcode},{adm2},{postcode_to_adm2[outer_postcode]},{processed_adm2}\n')
-                        conflict_count += 1
+                    geog_dict["location"] = location
+                else:
+                    geog_dict["location"] = ""
 
-                    utla = ""
-                    code = ""
-                    grouping = ""
-      
-                    if type(processed_adm2) != bool and processed_adm2 != "" and processed_adm2 not in NI_counties:
-                        if "|" in processed_adm2:
-                            utlas = set()
-                            bits = processed_adm2.split("|")
-                            for i in bits:
-                                for j in adm2_to_utla[i]:
-                                    utlas.add(j)
-                            utla = "|".join(utlas)
+                if conflict and name not in already_checked_discreps:
+                    incompatible_locations.write(f'{sequence["central_sample_id"]},{outer_postcode},{adm2},{postcode_to_adm2[outer_postcode]},{processed_adm2}\n')
+                    conflict_count += 1
+
+                utla = ""
+                code = ""
+                grouping = ""
+
+                if type(processed_adm2) != bool and processed_adm2 != "" and processed_adm2 not in NI_counties:
+                    if "|" in processed_adm2:
+                        utlas = set()
+                        bits = processed_adm2.split("|")
+                        for i in bits:
+                            for j in adm2_to_utla[i]:
+                                utlas.add(j)
+                        utla = "|".join(utlas)
+                    else:
+                        utla = "|".join(adm2_to_utla[processed_adm2])
+
+                    if "|" in utla:
+                        codes = set()
+                        bits = utla.split("|")
+                        for i in bits:
+                            codes.add(utla_codes[i])
+                        code = "|".join(codes)
+                    else:
+                        code = utla_codes[utla]
+
+                    if "|" in processed_adm2:
+                        groupings = set()
+                        bits = processed_adm2.split("|")
+                        for i in bits:
+                            groupings.add(suggested_groupings[i])
+                        grouping = "|".join(groupings)
+                    else:
+                        grouping = suggested_groupings[processed_adm2]
+
+                geog_dict["utla"] = utla 
+                geog_dict["utla_code"] = code
+                geog_dict["suggested_adm2_grouping"] = grouping
+
+                
+                epiweek = sequence[epiweek_col] 
+                if processed_adm2 != "" and processed_adm2 != "Needs_manual_curation":
+                    if processed_adm2 in adm2_to_week_counts.keys():
+                        if epiweek in adm2_to_week_counts[processed_adm2].keys():
+                            adm2_to_week_counts[processed_adm2][epiweek] += 1
                         else:
-                            utla = "|".join(adm2_to_utla[processed_adm2])
-
-                        if "|" in utla:
-                            codes = set()
-                            bits = utla.split("|")
-                            for i in bits:
-                                codes.add(utla_codes[i])
-                            code = "|".join(codes)
+                            adm2_to_week_counts[processed_adm2][epiweek] = 1
+                    else:
+                        adm2_to_week_counts[processed_adm2] = {}
+                        adm2_to_week_counts[processed_adm2][epiweek] = 1
+                if grouping != "":
+                    if grouping in adm2_to_week_counts.keys():
+                        if epiweek in adm2_to_week_counts[grouping].keys():
+                            adm2_to_week_counts[grouping][epiweek] += 1
                         else:
-                            code = utla_codes[utla]
+                            adm2_to_week_counts[grouping][epiweek] = 1
+                    else:
+                        adm2_to_week_counts[grouping] = {}
+                        adm2_to_week_counts[grouping][epiweek] = 1
 
-                        if "|" in processed_adm2:
-                            groupings = set()
-                            bits = processed_adm2.split("|")
-                            for i in bits:
-                                groupings.add(suggested_groupings[i])
-                            grouping = "|".join(groupings)
-                        else:
-                            grouping = suggested_groupings[processed_adm2]
-
-                    geog_dict["utla"] = utla 
-                    geog_dict["utla_code"] = code
-                    geog_dict["suggested_adm2_grouping"] = grouping
-
-                    writer.writerow(geog_dict)
-
+                outer_geog_dict[name] = geog_dict 
+                epiweek_dict[name] = epiweek
+    
     new_unclean_locations.close()
     incompatible_locations.close()
     postcodes_with_no_adm2.close()
 
     write_log_file(missing_adm1, missing_adm2, missing_op, curation, conflict_count, log_file)
     log_file.close()
+    
+    return outer_geog_dict, adm2_to_week_counts, epiweek_dict
+
+def make_geography_csv(metadata_file, country_col, outer_postcode_col, adm1_col, adm2_col,epiweek_col, map_utils_dir, outdir):
+
+    with open(os.path.join(outdir,"geography.csv"), 'w') as fw:
+        fieldnames = ["sequence_name","id","adm2_raw","adm2","adm2_source","NUTS1","adm1","outer_postcode","region","latitude","longitude", "location", "utla", "utla_code", "suggested_adm2_grouping", "safe_location"]
+        writer = csv.DictWriter(fw, fieldnames=fieldnames)
+        writer.writeheader()
+
+        outer_geog_dict, adm2_to_week_counts, epiweek_dict = process_input(metadata_file, country_col, outer_postcode_col, adm1_col, adm2_col, epiweek_col, map_utils_dir, outdir)
+
+        for name, geog_dict in outer_geog_dict.items():
+            epiweek = epiweek_dict[name]
+            if geog_dict['adm2'] != "Needs_manual_curation":
+                safe_loc = make_safe_loc(adm2_to_week_counts, geog_dict, epiweek)
+            else:
+                safe_loc = ""
+            geog_dict["safe_location"] = safe_loc.upper().replace(" ","_")
+            writer.writerow(geog_dict)
 
 def write_log_file(missing_adm1, missing_adm2, missing_op, curation, conflict, log_file):
 
@@ -518,13 +608,14 @@ def main():
     parser.add_argument("--outer-postcode-col", dest="outer_postcode_col")
     parser.add_argument("--adm2-col", dest="adm2_col")
     parser.add_argument("--adm1-col", dest="adm1_col")
+    parser.add_argument("--epiweek-col", dest="epiweek_col")
     parser.add_argument("--mapping-utils-dir", dest="map_utils_dir", help="path to map utils eg outer postcode")
     parser.add_argument("--outdir")
 
 
     args = parser.parse_args()
 
-    make_geography_csv(args.metadata, args.country_col, args.outer_postcode_col, args.adm1_col, args.adm2_col, args.map_utils_dir, args.outdir)
+    make_geography_csv(args.metadata, args.country_col, args.outer_postcode_col, args.adm1_col, args.adm2_col, args.epiweek_col, args.map_utils_dir, args.outdir)
 
 
 if __name__ == '__main__':
