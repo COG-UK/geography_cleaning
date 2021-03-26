@@ -30,6 +30,7 @@ This script will also accept valid NUTS1 regions as inputs. These are defined at
 - utla: Upper Tier Local Authority. Similar to adm2, often used with reporting epidemiological data. Multiple adm2s may map to the same UTLA and vice versa.
 - utla_code: ONS-defined code for UTLAs.
 - suggested_adm2_grouping: Designation that may be more sensible for some geographical analyses. See below.
+- safe_location: location to de-identify sequence if the data is very sparse, see algorithm below.
 
 
 ### Adm2 processing:
@@ -64,7 +65,9 @@ It is a combination of two things:
 
 The file that defines this is "adm2_aggregation.csv" in the "geography_utils" folder. 
 
+### Safe location:
 
+While adm2-level data usually isn't viewed as identifying, if data is sparse, it may be. If there are fewer than 5 sequences in an epiweek in the sequence's adm2, then the aggregated adm2 is checked. If there are still less than five sequences in this grouping, then the NUTS1 region is given. If the adm2 or grouping is ambiguous one (ie it has a "|"), then the counts are combined. Eg if the adm2 is "EAST_SUSSEX|WEST_SUSSEX", then there must be five sequences between the two locations or the aggregated adm2 will be provided.
 
 ### Files in geography_utilities folder:
 
