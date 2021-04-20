@@ -400,6 +400,7 @@ def process_input(metadata_file, country_col, outer_postcode_col, adm1_col, adm2
             geog_dict['country'] = country
             
             geog_dict['location'] = ""
+            NUTS1 = ""
 
             adm2 = adm2.replace(" ","_")
 
@@ -438,7 +439,6 @@ def process_input(metadata_file, country_col, outer_postcode_col, adm1_col, adm2
                         
                         geog_dict["adm2"] = processed_adm2
 
-                        NUTS1 = ""
                         if source != "nuts_provided":
                             if "|" in processed_adm2:
                                 nuts_adm2 = processed_adm2.split("|")[0]
