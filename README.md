@@ -75,7 +75,7 @@ While adm2-level data usually isn't viewed as identifying, if data is sparse, it
 - adm2_cleaning.tsv: known mistakes made when inputting adm2s. First column is the location provided in the unclean metadata. If there's only one other column, it is a 1:1 mapping to a GADM adm2 (eg Borders to Scottish_borders). If there are multiple other columns, then the adm2 supplied consists of multiple GADM adm2s.
 - nuts_to_adm2.tsv: definition of the NUTS1 regions in terms of adm2.
 - outer_postcode_cleaning.csv: known errors in input postcodes. Usually spelling mistakes and mis-transcription.
-- outer_postcode_latlongs_region.csv: lookup table for postcode district to region and centroid. Those without latitudes and longitudes are those not part of England, Wales, Scotland or Northern Ireland (eg channel islands)
+- outer_postcode_latlongs_region.csv: lookup table for postcode district to region and centroid. Those without latitudes and longitudes are non-geographic postcodes
 - postcode_to_adm2: Lookup table to match outer postcodes to one or more GADM adm2s, ambiguities denoted by "|".
 
 
