@@ -335,9 +335,7 @@ def make_safe_loc(adm2_to_week_counts, geog_dict, epiweek, non_uks, safe_locs):
 
     return safe_loc
 
-def deal_with_nonuk_cog(country, adm1, adm2, epiweek, geog_dict, adm2_to_week_counts):
-
-    safe_locs = {"FALKLAND_ISLANDS": "OVERSEAS_TERRITORY", 'GIBRALTAR':'OVERSEAS_TERRITORY', 'JERSEY':'CHANNEL_ISLANDS', 'GUERNSEY':'CHANNEL_ISLANDS', 'ISLE_OF_MAN':''}
+def deal_with_nonuk_cog(country, adm1, adm2, epiweek, geog_dict, adm2_to_week_counts, safe_locs):
 
     if adm2 != "":
         adm1 = adm2.title().replace("Of","of")
@@ -377,7 +375,7 @@ def deal_with_nonuk_cog(country, adm1, adm2, epiweek, geog_dict, adm2_to_week_co
         adm2_to_week_counts[safe_loc] = {}
         adm2_to_week_counts[safe_loc][epiweek] = 1
 
-    return geog_dict, adm2_to_week_counts, safe_locs
+    return geog_dict, adm2_to_week_counts
 
 
 def process_input(metadata_file, country_col, outer_postcode_col, adm1_col, adm2_col, epiweek_col, map_utils_dir,outdir):
@@ -418,6 +416,8 @@ def process_input(metadata_file, country_col, outer_postcode_col, adm1_col, adm2
     not_mappable = ["NA","WALES", "YORKSHIRE", "OTHER", "UNKNOWN", "UNKNOWN_SOURCE", "NOT_FOUND", "CITY_CENTRE", "NONE"] 
     missing_postcodes = ["ZZ9", "ZZ99", "99ZZ", "UNKNOWN", "BF1", "BF10"] #the BFs are british forces overseas, but can't narrow down where in the world from just the outer postcode
     NI_counties = ['TYRONE', 'ANTRIM', 'ARMAGH', 'FERMANAGH', 'LONDONDERRY', 'DOWN']
+
+    safe_locs = {"FALKLAND_ISLANDS": "OVERSEAS_TERRITORY", 'GIBRALTAR':'OVERSEAS_TERRITORY', 'JERSEY':'CHANNEL_ISLANDS', 'GUERNSEY':'CHANNEL_ISLANDS', 'ISLE_OF_MAN':''}
 
     already_checked_discreps = ["LOND-12508C8", "LOND-1263D3C", "LOND-1263622", "NORT-29A8E3", "PORT-2D7668"]
 
@@ -603,7 +603,7 @@ def process_input(metadata_file, country_col, outer_postcode_col, adm1_col, adm2
 
 
                 if processed_adm1 in non_uk or processed_adm2 in non_uk:
-                    geog_dict,adm2_to_week_counts, safe_locs = deal_with_nonuk_cog(country, processed_adm1, processed_adm2, epiweek, geog_dict, adm2_to_week_counts)
+                    geog_dict,adm2_to_week_counts = deal_with_nonuk_cog(country, processed_adm1, processed_adm2, epiweek, geog_dict, adm2_to_week_counts, safe_locs)
 
 
                 outer_geog_dict[name] = geog_dict 
