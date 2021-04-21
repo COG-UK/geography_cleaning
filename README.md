@@ -17,6 +17,7 @@ This script will also accept valid NUTS1 regions as inputs. These are defined at
 ### Columns in output:
 - Sequence_name
 - ID
+- Country: will be mostly UK, but now this script accepts crown dependencies/overseas territories which have their own country designations
 - adm2_raw: the inputted adm2, unedited
 - adm2: processed adm2, corrected for spelling mistakes and matched to the GADM adm2s. See below for explanation.
 - adm2_source: options are "outer_postcode", "adm2_raw", "cleaned_adm2_raw", "postcode_conflict_resolution". See below for explanation.
