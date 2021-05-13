@@ -440,7 +440,7 @@ def process_input(metadata_file, country_col, outer_postcode_col, adm1_col, adm2
             geog_dict = {}
             geog_dict["sequence_name"] = sequence["sequence_name"]
             geog_dict["id"] = name
-            geog_dict["adm2_raw"] = adm2
+            geog_dict["adm2_raw"] = adm2.replace(",","")
             geog_dict["outer_postcode"] = outer_postcode
             geog_dict['country'] = country
             
