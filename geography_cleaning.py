@@ -38,7 +38,7 @@ def process_adm2(outer_postcode, adm2, metadata_multi_loc, straight_map, not_map
             processed_adm2 = ""
             source = ""
 
-    elif adm2 in nuts_list:
+    elif adm2 in nuts_list and adm2 not in acceptable_adm2s:
         processed_adm2 = ""
         source = "nuts_provided"
 
@@ -482,7 +482,7 @@ def process_input(metadata_file, country_col, outer_postcode_col, adm1_col, adm2
 
                     if type(processed_adm2) != bool and processed_adm2 not in non_uk:
                         
-                        geog_dict["adm2"] = processed_adm2
+                        geog_dict["adm2"] = processed_adm2.replace(" ","_")
 
                         if source != "nuts_provided":
                             if "|" in processed_adm2:
