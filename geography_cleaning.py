@@ -6,6 +6,7 @@ import geopandas as gp
 from collections import defaultdict
 from collections import Counter
 import os
+import international_cleaning 
 
 
 def do_outer_postcode_region_latlong(geog_dict, outer_postcode, outer_to_latlongs_region):
@@ -102,7 +103,7 @@ def process_adm2(outer_postcode, adm2, metadata_multi_loc, straight_map, not_map
     return processed_adm2, source, conflict
 
 
-def do_adm1(country):
+def do_uk_adm1(country):
 
     adm1 = ""
 
@@ -408,9 +409,13 @@ def process_input(metadata_file, country_col, outer_postcode_col, adm1_col, adm2
     curation = 0
     conflict_count = 0
 
+    unclean_adm0 = set()
+    unclean_adm1 = []
+    acceptable_adm0s, acceptable_adm1s, adm0_clean_dict, adm1_clean_dict = international_cleaning.load_international_files(map_utils_dir)
+
     nice_names = commonly_used_names()
 
-    country_list = ["UK", "Falkland Islands", "Gibraltar", "Jersey", "Isle of Man", "Guernsey"]
+    country_list = ["UK", "FALKLAND_ISLANDS", "GIBRALTAR", "JERSEY", "ISLE_OF_MAN", "GUERNSEY"]
     non_uk = ["FALKLAND_ISLANDS", 'GIBRALTAR', 'JERSEY', 'ISLE_OF_MAN', 'GUERNSEY']
 
     not_mappable = ["NA","WALES", "YORKSHIRE", "OTHER", "UNKNOWN", "UNKNOWN_SOURCE", "NOT_FOUND", "CITY_CENTRE", "NONE"] 
@@ -443,15 +448,16 @@ def process_input(metadata_file, country_col, outer_postcode_col, adm1_col, adm2
             geog_dict["adm2_raw"] = adm2
             geog_dict["outer_postcode"] = outer_postcode
             geog_dict['country'] = country
+            geog_dict['adm1_raw'] = adm1
             
             geog_dict['location'] = ""
             NUTS1 = ""
 
             adm2 = adm2.replace(" ","_")
 
-            if country in country_list:
+            if country.upper().replace(" ","_") in country_list:
 
-                processed_adm1 = do_adm1(adm1)
+                processed_adm1 = do_uk_adm1(adm1)
                 geog_dict["adm1"] = processed_adm1
                 if processed_adm1 == "":
                     missing_adm1 += 1
@@ -536,6 +542,8 @@ def process_input(metadata_file, country_col, outer_postcode_col, adm1_col, adm2
                         location = NUTS1.replace("_"," ").title().replace("Of","of")
                     elif processed_adm1 != "":
                         location = processed_adm1
+                    else:
+                        location = "" #this shouldn't really happen, but useful when needing to process other files
 
                     geog_dict["location"] = location
                     
@@ -604,35 +612,49 @@ def process_input(metadata_file, country_col, outer_postcode_col, adm1_col, adm2
 
                 if processed_adm1 in non_uk or processed_adm2 in non_uk:
                     geog_dict,adm2_to_week_counts = deal_with_nonuk_cog(country, processed_adm1, processed_adm2, epiweek, geog_dict, adm2_to_week_counts, safe_locs)
-
+                    
 
                 outer_geog_dict[name] = geog_dict 
                 epiweek_dict[name] = epiweek
-    
+
+            else:
+                geog_dict,unclean_adm0, unclean_adm1 = international_cleaning.international_cleaning(geog_dict,unclean_adm0, unclean_adm1, acceptable_adm0s, acceptable_adm1s, adm0_clean_dict, adm1_clean_dict)
+                name = geog_dict['sequence_name']
+                outer_geog_dict[name] = geog_dict
+
+
     new_unclean_locations.close()
     incompatible_locations.close()
     postcodes_with_no_adm2.close()
 
     write_log_file(missing_adm1, missing_adm2, missing_op, curation, conflict_count, log_file)
     log_file.close()
+
+    international_cleaning.write_international_missing_file(unclean_adm0, unclean_adm1, outdir)
     
     return outer_geog_dict, adm2_to_week_counts, epiweek_dict, non_uk, safe_locs
 
 def make_geography_csv(metadata_file, country_col, outer_postcode_col, adm1_col, adm2_col,epiweek_col, map_utils_dir, outdir):
 
+    country_list = ["UK", "FALKLAND_ISLANDS", "GIBRALTAR", "JERSEY", "ISLE_OF_MAN", "GUERNSEY"]
+
     with open(os.path.join(outdir,"geography.csv"), 'w') as fw:
-        fieldnames = ["sequence_name","id","country", "adm2_raw","adm2","adm2_source","NUTS1","adm1","outer_postcode","region","latitude","longitude", "location", "utla", "utla_code", "suggested_adm2_grouping", "safe_location"]
+
+        fieldnames = ["sequence_name","id","country", "adm2_raw","adm2","adm2_source","NUTS1","adm1_raw","adm1","outer_postcode","region","latitude","longitude", "location", "utla", "utla_code", "suggested_adm2_grouping", "safe_location"]
         writer = csv.DictWriter(fw, fieldnames=fieldnames)
         writer.writeheader()
 
         outer_geog_dict, adm2_to_week_counts, epiweek_dict, non_uk, safe_locs = process_input(metadata_file, country_col, outer_postcode_col, adm1_col, adm2_col, epiweek_col, map_utils_dir, outdir)
 
         for name, geog_dict in outer_geog_dict.items():
-            epiweek = epiweek_dict[name]
-            if geog_dict['adm2'] != "Needs_manual_curation":
-                safe_loc = make_safe_loc(adm2_to_week_counts, geog_dict, epiweek, non_uk, safe_locs)
+            if geog_dict["country"].upper().replace(" ","_") in country_list:
+                if geog_dict['adm2'] != "Needs_manual_curation":
+                    epiweek = epiweek_dict[name] 
+                    safe_loc = make_safe_loc(adm2_to_week_counts, geog_dict, epiweek, non_uk, safe_locs)
+                else:
+                    safe_loc = ""
             else:
-                safe_loc = ""
+                safe_loc = ''
             geog_dict["safe_location"] = safe_loc.upper().replace(" ","_")
             writer.writerow(geog_dict)
 
