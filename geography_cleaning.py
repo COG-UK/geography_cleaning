@@ -379,7 +379,7 @@ def deal_with_nonuk_cog(country, adm1, adm2, epiweek, geog_dict, adm2_to_week_co
     return geog_dict, adm2_to_week_counts
 
 
-def process_input(metadata_file, country_col, outer_postcode_col, adm1_col, adm2_col, epiweek_col, map_utils_dir,outdir):
+def process_input(metadata_file, country_col, outer_postcode_col, adm1_col, adm2_col, epiweek_col, sample_id_col, map_utils_dir,outdir):
 
     outer_to_latlongs_region = find_outerpostcode_to_coord_mapping(map_utils_dir)
     metadata_multi_loc, straight_map = prep_adm2_data(os.path.join(map_utils_dir, "adm2_cleaning.tsv"))
@@ -436,7 +436,7 @@ def process_input(metadata_file, country_col, outer_postcode_col, adm1_col, adm2
             adm1 = sequence[adm1_col]
             outer_postcode = sequence[outer_postcode_col].upper().strip(" ")
             adm2 = sequence[adm2_col]
-            name = sequence["central_sample_id"]
+            name = sequence[sample_id_col]
 
 
             if name in fixed_seqs:
@@ -549,7 +549,7 @@ def process_input(metadata_file, country_col, outer_postcode_col, adm1_col, adm2
                     
 
                 if conflict and name not in already_checked_discreps:
-                    incompatible_locations.write(f'{sequence["central_sample_id"]},{outer_postcode},{adm2},{postcode_to_adm2[outer_postcode]},{processed_adm2}\n')
+                    incompatible_locations.write(f'{sequence[sample_id_col]},{outer_postcode},{adm2},{postcode_to_adm2[outer_postcode]},{processed_adm2}\n')
                     conflict_count += 1
 
                 utla = ""
@@ -634,7 +634,7 @@ def process_input(metadata_file, country_col, outer_postcode_col, adm1_col, adm2
     
     return outer_geog_dict, adm2_to_week_counts, epiweek_dict, non_uk, safe_locs
 
-def make_geography_csv(metadata_file, country_col, outer_postcode_col, adm1_col, adm2_col,epiweek_col, map_utils_dir, outdir):
+def make_geography_csv(metadata_file, country_col, outer_postcode_col, adm1_col, adm2_col,epiweek_col, sample_id_col, map_utils_dir, outdir):
 
     country_list = ["UK", "FALKLAND_ISLANDS", "GIBRALTAR", "JERSEY", "ISLE_OF_MAN", "GUERNSEY"]
 
@@ -644,7 +644,7 @@ def make_geography_csv(metadata_file, country_col, outer_postcode_col, adm1_col,
         writer = csv.DictWriter(fw, fieldnames=fieldnames)
         writer.writeheader()
 
-        outer_geog_dict, adm2_to_week_counts, epiweek_dict, non_uk, safe_locs = process_input(metadata_file, country_col, outer_postcode_col, adm1_col, adm2_col, epiweek_col, map_utils_dir, outdir)
+        outer_geog_dict, adm2_to_week_counts, epiweek_dict, non_uk, safe_locs = process_input(metadata_file, country_col, outer_postcode_col, adm1_col, adm2_col, epiweek_col, sample_id_col, map_utils_dir, outdir)
 
         for name, geog_dict in outer_geog_dict.items():
             if geog_dict["country"].upper().replace(" ","_") in country_list:
@@ -702,13 +702,14 @@ def main():
     parser.add_argument("--adm2-col", dest="adm2_col")
     parser.add_argument("--adm1-col", dest="adm1_col")
     parser.add_argument("--epiweek-col", dest="epiweek_col")
+    parser.add_argument("--sample-id-col", default="central_sample_id")
     parser.add_argument("--mapping-utils-dir", dest="map_utils_dir", help="path to map utils eg outer postcode")
     parser.add_argument("--outdir")
 
 
     args = parser.parse_args()
 
-    make_geography_csv(args.metadata, args.country_col, args.outer_postcode_col, args.adm1_col, args.adm2_col, args.epiweek_col, args.map_utils_dir, args.outdir)
+    make_geography_csv(args.metadata, args.country_col, args.outer_postcode_col, args.adm1_col, args.adm2_col, args.epiweek_col, args.sample_id_col, args.map_utils_dir, args.outdir)
 
 
 if __name__ == '__main__':
