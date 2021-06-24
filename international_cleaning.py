@@ -72,12 +72,12 @@ def clean_adm0(adm0_raw, acceptable_adm0s, adm0_clean_dict, unclean_adm0):
         if lookup not in initials:
             adm0 = lookup.title()
         else:
-            adm0 = lookup
+            adm0 = lookup.title()
     elif lookup in adm0_clean_dict:
         if adm0_clean_dict[lookup] not in initials:
             adm0 = adm0_clean_dict[lookup].title()
         else:
-            adm0 = adm0_clean_dict[lookup]
+            adm0 = adm0_clean_dict[lookup].title()
     else:
         unclean_adm0.add(adm0_raw)
         adm0 = ""
